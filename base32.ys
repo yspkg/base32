@@ -1,0 +1,76 @@
+# Copyright 2025 Ingy dot Net
+# This code is licensed under MIT license (See License for details)
+
+!YS-v0
+
+ns: base32
+
+# Standard base32 alphabet (RFC 4648)
+base32-alphabet =:
+  'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
+
+padding-char =: \\=
+
+decode-map =:
+  into {}:
+    map-indexed \([%2 %1]): base32-alphabet
+
+defn- byte-to-bits(b):
+  :: Convert a byte to a sequence of 8 bits
+  for i (7 .. 0):
+    bit-test: number?(b).if(b b:int) i
+
+defn- bits-to-byte(bits):
+  :: Convert a sequence of 8 bits to a byte
+  reduce _ 0 map-indexed(vector bits):
+    fn(acc [idx bit]):
+      if bit:
+        bit-set(acc (- 7 idx))
+        acc
+
+defn- bits-to-base32-char(bits):
+  :: Convert 5 bits to a base32 character
+  value =:
+    reduce _ 0 map-indexed(vector bits):
+      fn(acc [idx bit]):
+        if bit:
+          bit-set(acc (4 - idx))
+          acc
+  nth: base32-alphabet value
+
+defn- base32-char-to-bits(c):
+  :: Convert a base32 character to 5 bits
+  when-let value decode-map(c):
+    for i (4 .. 0):
+      bit-test(value i)
+
+defn encode-bytes(bytes):
+  :: Encode a byte array into a base32 string
+  bits =: mapcat(byte-to-bits bytes)
+  padding-length =: (40 - (bits.# % 40)) % 40
+  padded-bits =: bits + repeat(padding-length false)
+  chars =:
+    map bits-to-base32-char: padded-bits.partition(5)
+  padding-chars =: padding-length.quot(5) * padding-char
+  apply str: chars + padding-chars
+
+# XXX Waiting for YS Java interop
+=>: !clj |
+  (defn encode
+    "Encode a string into base32"
+    [s]
+    (encode-bytes (.getBytes ^String s "UTF-8")))
+
+defn decode-bytes(s):
+  :: Decode a base32 string into a byte array
+  s =: s:uc.replace(qr('=') '')
+  bits =: seq(s)
+    .map(base32-char-to-bits)
+    .remove(nil?)
+    .concat(*)
+  bytes =: map(bits-to-byte partition(8 bits))
+  byte-array: bytes
+
+defn decode(s):
+  :: Decode a base32 string back to a string
+  =>: s.decode-bytes().map(char).str(*)
