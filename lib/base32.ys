@@ -54,12 +54,9 @@ defn encode-bytes(bytes):
   padding-chars =: padding-length.quot(5) * padding-char
   apply str: chars + padding-chars
 
-# XXX Waiting for YS Java interop
-=>: !clj |
-  (defn encode
-    "Encode a string into base32"
-    [s]
-    (encode-bytes (.getBytes ^String s "UTF-8")))
+defn encode(s):
+  :: Encode a string into base32
+  encode-bytes: s.~getBytes("UTF-8")
 
 defn decode-bytes(s):
   :: Decode a base32 string into a byte array
